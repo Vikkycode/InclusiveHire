@@ -2,25 +2,41 @@ import { NextResponse } from 'next/server';
 
 export function middleware(request) {
   const { pathname } = request.nextUrl;
-  const isAuthenticated = request.cookies.get('auth_token');
-  const userRole = request.cookies.get('user_role');
+  const token = request.cookies.get('accessToken');
+  const userRole = request.cookies.get('userRole');
 
-  // Protected routes
-  const protectedRoutes = ['/dashboard', '/employer/dashboard', '/admin/dashboard'];
-  const adminRoutes = ['/admin/dashboard'];
+  // Public paths that don't require authentication
+  const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password'];
   
-  // Auth routes that shouldn't be accessed if logged in
-  const authRoutes = ['/login', '/register'];
+  // Role-specific paths
+  const adminPaths = ['/admin'];
+  const employerPaths = ['/employer'];
+  const jobseekerPaths = ['/jobs'];
 
-  if (protectedRoutes.includes(pathname) && !isAuthenticated) {
+  // Check if path is public
+  if (publicPaths.includes(pathname)) {
+    if (token) {
+      // If user is logged in, redirect to appropriate dashboard
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // Check if user is authenticated
+  if (!token) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  if (adminRoutes.includes(pathname) && userRole !== 'ADMIN') {
+  // Role-based access control
+  if (adminPaths.some(path => pathname.startsWith(path)) && userRole !== 'ADMIN') {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  if (authRoutes.includes(pathname) && isAuthenticated) {
+  if (employerPaths.some(path => pathname.startsWith(path)) && userRole !== 'EMPLOYER') {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  if (jobseekerPaths.some(path => pathname.startsWith(path)) && userRole !== 'JOBSEEKER') {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
@@ -28,5 +44,7 @@ export function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/dashboard', '/employer/dashboard', '/admin/dashboard', '/login', '/register']
+  matcher: [
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
 };

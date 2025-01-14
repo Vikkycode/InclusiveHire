@@ -1,7 +1,10 @@
-from django.urls import path
-from . import views
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import JobViewSet
+
+router = DefaultRouter()
+router.register(r'', JobViewSet, basename='job')
 
 urlpatterns = [
-    # We'll add job-related URLs here later
-    # For now, keep it empty to fix the error
+    path('', include(router.urls)),
 ]

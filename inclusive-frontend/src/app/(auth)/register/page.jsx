@@ -1,9 +1,14 @@
 'use client';
-
+import { useState } from 'react';
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import {useRouter} from 'next/navigation'
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {useToast} from '@/hooks/use-toast'
 import {
   Select,
   SelectContent,
@@ -20,40 +25,100 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import { useForm } from "react-hook-form"
+
+// Add form validation schema
+const formSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  role: z.enum(["JOBSEEKER", "EMPLOYER", "ADMIN"], {
+    required_error: "Please select a role",
+  }),
+});
 
 export default function Register() {
-  const { register } = useAuth();
+  const router = useRouter();
+  const { register: authRegister } = useAuth();
+  const { toast } = useToast();
+  // Update form initialization with schema
   const form = useForm({
+    resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
+      username: "",
       email: "",
       password: "",
       role: "JOBSEEKER",
     },
   });
-
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  
   const onSubmit = async (data) => {
-    await register(data);
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      const user = await authRegister(data);
+      
+      toast({
+        title: "Success!",
+        description: "Registration successful",
+      });
+
+      // Redirect based on user role
+      if (user.role === 'EMPLOYER') {
+        router.push('/employers/dashboard');
+      } else if (user.role === 'ADMIN') {
+        router.push('/admin/dashboard');
+      } else if (user.role === 'JOBSEEKER'){
+        router.push('/jobseekers/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      
+      // Handle validation errors
+      if (error.response?.data?.details) {
+        setErrors(error.response.data.details);
+        
+        // Show first error message in toast
+        const firstError = Object.values(error.response.data.details)[0];
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: Array.isArray(firstError) ? firstError[0] : firstError,
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Registration failed. Please try again.",
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <Card className="w-[400px]">
         <CardHeader>
-          <h2 className="text-2xl font-bold text-center">Register</h2>
+          <h1 className="text-2xl font-bold text-center">Create Account</h1>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="name"
+                name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Full Name</FormLabel>
+                    <FormLabel>Username</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter your name" {...field} />
+                      <Input placeholder="username" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -66,7 +131,7 @@ export default function Register() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter your email" {...field} />
+                      <Input type="email" placeholder="email@example.com" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -79,7 +144,7 @@ export default function Register() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Create a password" {...field} />
+                      <Input type="password" placeholder="********" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

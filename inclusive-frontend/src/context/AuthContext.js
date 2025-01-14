@@ -1,103 +1,116 @@
 'use client';
 
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import axios from '@/lib/axios';
 import { useRouter } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
 
-const AuthContext = createContext();
+const AuthContext = createContext({
+  user: null,
+  loading: true,
+  login: async () => {},
+  logout: () => {},
+  register: async () => {},
+});
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const { toast } = useToast();
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        const response = await axios.get('/api/users/me/');
+        setUser(response.data);
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      localStorage.removeItem('token');
+      delete axios.defaults.headers.common['Authorization'];
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const login = async (email, password) => {
     try {
-      const response = await fetch('http://localhost:8000/api/auth/login/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      // Clear any previous tokens
+      localStorage.removeItem('token');
+      localStorage.removeItem('refresh_token');
+      delete axios.defaults.headers.common['Authorization'];
+
+      const tokenResponse = await axios.post('/api/users/token/', {
+        email,
+        password,
       });
 
-      if (!response.ok) throw new Error('Login failed');
+      const { access, refresh, user } = tokenResponse.data;
 
-      const data = await response.json();
-      setUser(data.user);
-      toast({
-        title: "Success",
-        description: "Logged in successfully",
-      });
+      localStorage.setItem('token', access);
+      localStorage.setItem('refresh_token', refresh);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+
+      setUser(user);
 
       // Redirect based on user role
-      if (data.user.role === 'ADMIN') {
+      if (user.role === 'EMPLOYER') {
+        router.push('/employers/dashboard');
+      } else if (user.role === 'ADMIN') {
         router.push('/admin/dashboard');
-      } else if (data.user.role === 'EMPLOYER') {
-        router.push('/employer/dashboard');
       } else {
-        router.push('/dashboard');
+        router.push('/jobseekers/dashboard');
       }
+
+      return user;
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
+      console.error('Login error:', error);
+      if (error.response?.status === 401) {
+        throw new Error('Invalid email or password');
+      }
+      throw new Error('Login failed. Please try again.');
     }
   };
 
   const register = async (userData) => {
     try {
-      // Don't allow direct admin registration through the normal flow
-      if (userData.role === 'ADMIN') {
-        throw new Error('Admin registration not allowed');
-      }
-
-      const response = await fetch('http://localhost:8000/api/auth/register/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData),
+      const registerResponse = await axios.post('/api/users/register/', userData);
+      const loginResponse = await axios.post('/api/token/', {
+        email: userData.email,
+        password: userData.password,
       });
 
-      if (!response.ok) throw new Error('Registration failed');
+      const { access, refresh } = loginResponse.data;
+      localStorage.setItem('token', access);
+      localStorage.setItem('refresh_token', refresh);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
 
-      const data = await response.json();
-      setUser(data.user);
-      toast({
-        title: "Success",
-        description: "Registration successful",
-      });
+      const userResponse = await axios.get('/api/users/me/');
+      setUser(userResponse.data);
 
-      // Redirect based on user role
-      if (data.user.role === 'EMPLOYER') {
-        router.push('/employer/dashboard');
-      } else {
-        router.push('/dashboard');
-      }
+      return userResponse.data;
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
+      console.error('Registration error:', error);
+      throw error;
     }
   };
 
   const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refresh_token');
+    delete axios.defaults.headers.common['Authorization'];
     setUser(null);
     router.push('/login');
-    toast({
-      title: "Logged out",
-      description: "You have been logged out successfully",
-    });
-  };
-
-  // Helper function to check if user is admin
-  const isAdmin = () => {
-    return user?.role === 'ADMIN';
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, register }}>
       {children}
     </AuthContext.Provider>
   );
