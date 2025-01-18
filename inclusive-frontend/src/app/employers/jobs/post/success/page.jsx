@@ -30,12 +30,12 @@ export default function PostSuccess() {
           <div className="space-x-4">
             <Button 
               variant="outline" 
-              onClick={() => router.push('/employer/dashboard')}
+              onClick={() => router.push('/employers/dashboard')}
             >
               Go to Dashboard
             </Button>
             <Button 
-              onClick={() => router.push('/employer/jobs/post')}
+              onClick={() => router.push('/employers/jobs/post')}
             >
               Post Another Job
             </Button>

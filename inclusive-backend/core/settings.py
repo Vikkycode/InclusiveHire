@@ -22,6 +22,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework.authtoken',
+    'dj_rest_auth',
+    # 'dj_rest_auth.registration',
+    'rest_auth',
 
     
     # Third party apps
@@ -32,7 +36,9 @@ INSTALLED_APPS = [
     
     # Local apps
     'users',
-    'jobs.apps.JobsConfig',
+    'jobs',
+    'company',
+    'application'
 ]
 
 MIDDLEWARE = [

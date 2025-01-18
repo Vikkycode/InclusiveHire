@@ -3,6 +3,7 @@ from .models import Job
 
 class JobSerializer(serializers.ModelSerializer):
     company_name = serializers.CharField(source='company.username', read_only=True)
+    company = serializers.HiddenField(default=serializers.CurrentUserDefault())
     
     class Meta:
         model = Job
@@ -24,3 +25,7 @@ class JobSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data['company'] = self.context['request'].user
         return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data.pop('company', None)
+        return super().update(instance, validated_data)

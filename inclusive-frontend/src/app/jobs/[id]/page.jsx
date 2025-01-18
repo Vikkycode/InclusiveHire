@@ -23,6 +23,7 @@ export default function JobDetail() {
       setJob(response.data);
     } catch (error) {
       console.error('Error fetching job:', error);
+      router.push('/404')
     } finally {
       setLoading(false);
     }

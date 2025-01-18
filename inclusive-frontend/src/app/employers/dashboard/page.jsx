@@ -14,6 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import DashboardLayout from '@/components/layouts/DashboardLayout';
 import axios from '@/lib/axios';
 
 export default function EmployerDashboard() {
@@ -55,6 +56,7 @@ export default function EmployerDashboard() {
   }
 
   return (
+    <DashboardLayout>
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Employer Dashboard</h1>
@@ -206,5 +208,6 @@ export default function EmployerDashboard() {
         </Card>
       </div>
     </div>
+    </DashboardLayout>
   );
 }
